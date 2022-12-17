@@ -2,8 +2,15 @@ import dxcam;
 import cv2;
 import os.path;
 from pymouse import PyMouse;
-import keyboard;
 import time;
+
+# Use enum for state tracking
+import enum;
+class State(enum.Enum):
+    IDLE = 0; # Just standing (doing nothing)
+    CASTED_OUT = 1; # Fishing pole casted out
+    REELING_IN_FISH = 2; # Holding right click to reel in fish
+    FISHING_IDLE = 3; # Idle when fish is pulling
 
 # Setup images resource path
 res = os.path.join(os.path.dirname(__file__), "res\\");
@@ -28,7 +35,7 @@ imgCatch = cv2.imread(imgCatch, cv2.IMREAD_GRAYSCALE);
 imgPull = cv2.imread(imgPull, cv2.IMREAD_GRAYSCALE);
 imgStopPull = cv2.imread(imgStopPull, cv2.IMREAD_GRAYSCALE);
 
-# Vars for mouse input
+# Setup for mouse input
 mouse = PyMouse();
 screenWidth, screenHeight = mouse.screen_size();
 
@@ -36,79 +43,51 @@ screenWidth, screenHeight = mouse.screen_size();
 screenCam = dxcam.create();
 screenCam.start(target_fps=60);
 
-# Var for actually running thing
-runningAutoFish = False;
-togglePressed = False;
+# Vars for state logic
+state = State.IDLE;
+fishingIdleTime = time.time(); # Used to recast after fish is caught (or failed)
 
-#Variables for auto fishing
-catching = False;
-reelingIn = False;
-casted = False;
-inputTime = time.time(); # Used to recast after fish is caught (or failed)
+# Add delay for now
+time.sleep(3);
 
 while (True):
-    # Enable/Disable when g is pressed
-    if (keyboard.is_pressed("g") and not togglePressed):
-        togglePressed = True;
-
-        if (not runningAutoFish):
-            catching = False;
-            reelingIn = False;
-            casted = False;
-            inputTime = time.time(); 
-            runningAutoFish = True;
-        elif (runningAutoFish):
-            # Ensure mouse does not have problems
-            if (reelingIn):
-                mouse.release(int(screenWidth/2), int(screenHeight/2), button=2);
-            # Assume casted out
-            else:
-                mouse.click(int(screenWidth/2), int(screenHeight/2), button=2);
-            runningAutoFish = False;
-    elif (not keyboard.is_pressed("g") and togglePressed):
-        togglePressed = False;
-
-    if (not runningAutoFish):
-        continue;
-
+    # Get latest screen image
     screen = cv2.cvtColor(screenCam.get_latest_frame(), cv2.COLOR_RGB2GRAY);
 
-    catchResults = cv2.matchTemplate(screen, imgCatch, cv2.TM_SQDIFF_NORMED);
-    catchResult = cv2.minMaxLoc(catchResults)[0] < 0.01;
+    match state:
 
-    pullResults = cv2.matchTemplate(screen, imgPull, cv2.TM_SQDIFF_NORMED);
-    pullResult = cv2.minMaxLoc(pullResults)[0] < 0.05;
+        case State.IDLE:
+            # Cast fishing rod
+            mouse.click(int(screenWidth/2), int(screenHeight/2), button=2);
+            state = State.CASTED_OUT;
 
-    stopPullResults = cv2.matchTemplate(screen, imgStopPull, cv2.TM_SQDIFF_NORMED);
-    stopPullResult = cv2.minMaxLoc(stopPullResults)[0] < 0.09;
+        case State.CASTED_OUT:
+            # Check for when catching something
+            catchResults = cv2.matchTemplate(screen, imgCatch, cv2.TM_SQDIFF_NORMED);
+            if (cv2.minMaxLoc(catchResults)[0] < 0.01):
+                # If found, reel in
+                mouse.click(int(screenWidth/2), int(screenHeight/2), button=2);
+                fishingIdleTime = time.time(); 
+                state = State.FISHING_IDLE;
 
-    # Logic
-
-    # Click to pull in fish and latch pullingThing
-    if (catchResult and not catching):
-        mouse.click(int(screenWidth/2), int(screenHeight/2), button=2);
-        catching = True;
-    
-    # Unlatch pullingThing when catch picture is gone and recast
-    if (not catchResult and catching):
-        mouse.click(int(screenWidth/2), int(screenHeight/2), button=2);
-        catching = False;
-
-    # Update press mouse when fish orange
-    if (pullResult and not reelingIn):
-        mouse.press(int(screenWidth/2), int(screenHeight/2), button=2);
-        inputTime = time.time();
-        casted = False;
-        reelingIn = True;
-    # Update release mouse press when fish red
-    elif (stopPullResult and reelingIn):
-        mouse.release(int(screenWidth/2), int(screenHeight/2), button=2);
-        inputTime = time.time();
-        casted = False;
-        reelingIn = False;
-    # If 5 seconds have passed with no update,
-    # either caught or failed fish
-    elif (time.time() > inputTime + 5 and not casted):
-        mouse.click(int(screenWidth/2), int(screenHeight/2), button=2);
-        inputTime = time.time();
-        casted = True;
+        case State.FISHING_IDLE:
+            # Check if no longer catching fish
+            if (fishingIdleTime + 5 < time.time()):
+                state = State.IDLE;
+            # Check to start reeling in
+            pullResults = cv2.matchTemplate(screen, imgPull, cv2.TM_SQDIFF_NORMED);
+            if (cv2.minMaxLoc(pullResults)[0] < 0.05):
+                mouse.press(int(screenWidth/2), int(screenHeight/2), button=2);
+                fishingIdleTime = time.time(); 
+                state = State.REELING_IN_FISH;
+        
+        case State.REELING_IN_FISH:
+            # Check if no longer catching fish
+            if (fishingIdleTime + 5 < time.time()):
+                state = State.IDLE;
+            # Check to stop reeling in
+            stopPullResults = cv2.matchTemplate(screen, imgStopPull, cv2.TM_SQDIFF_NORMED);
+            if (cv2.minMaxLoc(stopPullResults)[0] < 0.09):
+                mouse.release(int(screenWidth/2), int(screenHeight/2), button=2);
+                fishingIdleTime = time.time(); 
+                state = State.FISHING_IDLE;
