@@ -2,6 +2,7 @@ import dxcam;
 import cv2;
 import os.path;
 from pymouse import PyMouse;
+import time;
 
 # Setup images resource path
 res = os.path.join(os.path.dirname(__file__), "res\\");
@@ -32,21 +33,24 @@ screenWidth, screenHeight = mouse.screen_size();
 catching = False;
 reelingIn = False;
 
+casted = False;
+inputTime = time.time(); # Used to recast after fish is caught (or failed)
+
 # Start screen recording
 screenCam = dxcam.create();
-screenCam.start(target_fps=20);
+screenCam.start(target_fps=60);
 
 while (True):
     screen = cv2.cvtColor(screenCam.get_latest_frame(), cv2.COLOR_RGB2GRAY);
 
     catchResults = cv2.matchTemplate(screen, imgCatch, cv2.TM_SQDIFF_NORMED);
-    catchResult = cv2.minMaxLoc(catchResults)[0] < 0.2;
+    catchResult = cv2.minMaxLoc(catchResults)[0] < 0.01;
 
     pullResults = cv2.matchTemplate(screen, imgPull, cv2.TM_SQDIFF_NORMED);
-    pullResult = cv2.minMaxLoc(pullResults)[0] < 0.35;
+    pullResult = cv2.minMaxLoc(pullResults)[0] < 0.05;
 
     stopPullResults = cv2.matchTemplate(screen, imgStopPull, cv2.TM_SQDIFF_NORMED);
-    stopPullResult = cv2.minMaxLoc(stopPullResults)[0] < 0.35;
+    stopPullResult = cv2.minMaxLoc(stopPullResults)[0] < 0.09;
 
     # Logic
 
@@ -55,18 +59,26 @@ while (True):
         mouse.click(int(screenWidth/2), int(screenHeight/2), button=2);
         catching = True;
     
-    # Unlatch pullingThing when catch picture is gone
+    # Unlatch pullingThing when catch picture is gone and recast
     if (not catchResult and catching):
+        mouse.click(int(screenWidth/2), int(screenHeight/2), button=2);
         catching = False;
 
-    # Update mouse press for pulling in fish
+    # Update press mouse when fish orange
     if (pullResult and not reelingIn):
         mouse.press(int(screenWidth/2), int(screenHeight/2), button=2);
+        inputTime = time.time();
+        casted = False;
         reelingIn = True;
+    # Update release mouse press when fish red
     elif (stopPullResult and reelingIn):
         mouse.release(int(screenWidth/2), int(screenHeight/2), button=2);
+        inputTime = time.time();
+        casted = False;
         reelingIn = False;
-    # After fish is caught release mouse
-    elif (reelingIn and not pullResult and not stopPullResult):
-        mouse.release(int(screenWidth/2), int(screenHeight/2), button=2);
-        pullResult = False;
+    # If 5 seconds have passed with no update,
+    # either caught or failed fish
+    elif (time.time() > inputTime + 5 and not casted):
+        mouse.click(int(screenWidth/2), int(screenHeight/2), button=2);
+        inputTime = time.time();
+        casted = True;
