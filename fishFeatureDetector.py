@@ -45,7 +45,7 @@ while True:
 
     # Check if pull is on screen
     pullOnScreen = cv2.matchTemplate(screen, imgPull, cv2.TM_SQDIFF_NORMED);
-    pullOnScreen = cv2.minMaxLoc(pullOnScreen)[1] < 0.1
+    pullOnScreen = cv2.minMaxLoc(pullOnScreen)[0] < 0.1
 
     # Check if stop pull is on screen
     stopPullOnScreen = cv2.matchTemplate(screen, imgStopPull, cv2.TM_SQDIFF_NORMED);
