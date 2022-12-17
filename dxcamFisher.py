@@ -2,6 +2,7 @@ import dxcam;
 import cv2;
 import os.path;
 from pymouse import PyMouse;
+import keyboard;
 import time;
 
 # Setup images resource path
@@ -30,17 +31,46 @@ imgStopPull = cv2.imread(imgStopPull, cv2.IMREAD_GRAYSCALE);
 # Vars for mouse input
 mouse = PyMouse();
 screenWidth, screenHeight = mouse.screen_size();
-catching = False;
-reelingIn = False;
-
-casted = False;
-inputTime = time.time(); # Used to recast after fish is caught (or failed)
 
 # Start screen recording
 screenCam = dxcam.create();
 screenCam.start(target_fps=60);
 
+# Var for actually running thing
+runningAutoFish = False;
+togglePressed = False;
+
+#Variables for auto fishing
+catching = False;
+reelingIn = False;
+casted = False;
+inputTime = time.time(); # Used to recast after fish is caught (or failed)
+
 while (True):
+    # Enable/Disable when g is pressed
+    if (keyboard.is_pressed("g") and not togglePressed):
+        togglePressed = True;
+
+        if (not runningAutoFish):
+            catching = False;
+            reelingIn = False;
+            casted = False;
+            inputTime = time.time(); 
+            runningAutoFish = True;
+        elif (runningAutoFish):
+            # Ensure mouse does not have problems
+            if (reelingIn):
+                mouse.release(int(screenWidth/2), int(screenHeight/2), button=2);
+            # Assume casted out
+            else:
+                mouse.click(int(screenWidth/2), int(screenHeight/2), button=2);
+            runningAutoFish = False;
+    elif (not keyboard.is_pressed("g") and togglePressed):
+        togglePressed = False;
+
+    if (not runningAutoFish):
+        continue;
+
     screen = cv2.cvtColor(screenCam.get_latest_frame(), cv2.COLOR_RGB2GRAY);
 
     catchResults = cv2.matchTemplate(screen, imgCatch, cv2.TM_SQDIFF_NORMED);
