@@ -42,7 +42,7 @@ mouse = PyMouse();
 screenWidth, screenHeight = mouse.screen_size();
 
 # Start screen recording
-screenCam = dxcam.create();
+screenCam = dxcam.create(output_color="GRAY");
 screenCam.start(target_fps=60);
 
 # Vars for state logic
@@ -69,7 +69,7 @@ while (True):
             time.sleep(2);
 
     # Get latest screen image
-    screen = cv2.cvtColor(screenCam.get_latest_frame(), cv2.COLOR_RGB2GRAY);
+    screen = screenCam.get_latest_frame();
 
     match state:
 
