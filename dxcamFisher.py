@@ -49,9 +49,6 @@ screenCam.start(target_fps=60);
 state = State.DISABLED;
 fishingIdleTime = time.time(); # Used to recast after fish is caught (or failed)
 
-# Add delay for now
-time.sleep(3);
-
 while (True):
     # Check to enable or disable
     if (keyboard.is_pressed("g")):
