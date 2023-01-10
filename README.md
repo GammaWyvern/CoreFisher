@@ -10,7 +10,7 @@ The script starts in disabled mode, tap toggle (g key by default) to enable and 
 
 # Config
 The default toggle key to enable auto fishing is g.
-If you would like to change it, simply change the toggleKey variable to your desired key.
+If you would like to change it, simply change the toggleKey variable in autofish.py to your desired key.
 (toggleKey is directly under the imports).
 
 # Dependencies
