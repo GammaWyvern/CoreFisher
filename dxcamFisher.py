@@ -5,6 +5,9 @@ from pymouse import PyMouse;
 import time;
 import keyboard;
 
+#Setup simple toggle key for auto fishing
+toggleKey = 'g';
+
 # Use enum for state tracking
 import enum;
 class State(enum.Enum):
@@ -51,7 +54,7 @@ fishingIdleTime = time.time(); # Used to recast after fish is caught (or failed)
 
 while (True):
     # Check to enable or disable
-    if (keyboard.is_pressed("g")):
+    if (keyboard.is_pressed(toggleKey)):
         if (state == State.DISABLED):
             state = State.IDLE;
             time.sleep(2);
