@@ -1,6 +1,6 @@
 # CoreFisher
 An auto fishing Python script for the game Core Keeper. To use
-You must manually start and stop the script.
+you must manually start and stop the script.
 The script starts in disabled mode, tap toggle (g key by default) to enable and disable auto fishing.
 
 # Requirements To Use
